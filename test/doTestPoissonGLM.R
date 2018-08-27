@@ -140,12 +140,10 @@ processAll <- function() {
     convergenceTol <- 1e-5
     basisFilename <- "data/raisedCosBasisNBasis2Dt0.0100EndPoints_0.01_0.04B0.00ZFlag0.RData"
     dataFilename <- "data/simulationResPoissonGLMWithAutohistoryD10Delta0.01N3000Mu10.40C10.20_-0.10Mu20.20C20.00_0.00.RData"
-    resultsFilenamePattern <- "results/simulationPoissonGLMWithAutohistoryD10Delta0.01N3000Mu10.40C10.20_-0.10Mu20.20C20.00_0.00_hmmEstimatedParams_%dDState.RData"
 
     res <- get(load(basisFilename))
     Phi <- res$nonOrthogonalBasis
     L <- nrow(Phi)
-    resultsFilename <- sprintf(resultsFilenamePattern, K)
 
     loadRes <- get(load(dataFilename))
     x <- loadRes$x
@@ -161,7 +159,14 @@ processAll <- function() {
                                            getUpdatedPoissonGLMParams,
                                           convergenceTol=convergenceTol,
                                           iterDisplayFn=iterDisplayFn)
-    save(estimationRes, file=resultsFilename)
+    vpath <- viterbi(Pi=estimationRes$Pi, p=estimationRes$p, A=estimationRes$A)
+
+    png("figures/testPoissonGLM.png")
+    plot(vpath, xlab="Sample", ylab="State", yaxt="n")
+    abline(v=now(x)/2, col="red")
+    axis(side=2, at=c(1,2))
+    dev.off()
+
 
     browser()
 }

@@ -1,6 +1,7 @@
 
-source("../src/stats/hmm/emEstimationHMM.R")
-source("../src/stats/hmm/viterbi.R")
+source("../emEstimationHMM.R")
+source("../viterbi.R")
+source("../computeHMMCrossValidatedLogLikelihood.R")
 require(signal)
 require(mvtnorm)
 
@@ -35,17 +36,23 @@ getPoissonProbabilities <- function(x, phi) {
 
 processAll <- function() {
     # generate data from two different Poisson distributions
-    nSamples <- 300
+    nSamplesTrain <- 300
+    nSamplesTest <- 100
     lambda1 <- 1
     lambda2 <- 3.5
     K <- 2
 
-    y1 <- rpois(n=nSamples/2, lambda=lambda1)
-    y2 <- rpois(n=nSamples/2, lambda=lambda2)
+    y1Train <- rpois(n=nSamplesTrain/2, lambda=lambda1)
+    y2Train <- rpois(n=nSamplesTrain/2, lambda=lambda2)
     # this creates data with a single change point
-    y <- matrix(c(y1,y2), nrow=1)
+    yTrain <- matrix(c(y1Train,y2Train), nrow=1)
     
-    estimationRes <- emEstimationHMM(x=y,
+    y1Test <- rpois(n=nSamplesTest/2, lambda=lambda1)
+    y2Test <- rpois(n=nSamplesTest/2, lambda=lambda2)
+    # this creates data with a single change point
+    yTest <- matrix(c(y1Test,y2Test), nrow=1)
+    
+    estimationRes <- emEstimationHMM(x=yTrain,
                                       K=K, 
                                       getInitEmissionModelParams=
                                        getInitPoissonParams,
@@ -56,9 +63,19 @@ processAll <- function() {
                                       convergenceTol=1e-4)
     vpath <- viterbi(Pi=estimationRes$Pi, p=estimationRes$p, A=estimationRes$A)
 
+    gamma <- estimationRes$gamma
+    PiTest <- gamma[nrow(gamma),]
+    crossValidatedLL <- 
+     computeHMMCrossValidatedLogLikelihood(x=yTest, 
+                                            Pi=PiTest, 
+                                            A=estimationRes$A,
+                                            phi=estimationRes$phi,
+                                            getEmissionProbabilities=
+                                             getPoissonProbabilities)
     png("figures/testPoisson.png")
-    plot(vpath, xlab="Sample", ylab="State", yaxt="n")
-    abline(v=length(y1), col="red")
+    plot(vpath, xlab="Sample", ylab="State", yaxt="n",
+                main=sprintf("LL=%f", crossValidatedLL))
+    abline(v=length(y1Train), col="red")
     axis(side=2, at=c(1,2))
     dev.off()
 

@@ -1,9 +1,12 @@
 
-source("../src/stats/hmm/emEstimationHMM.R")
-source("../src/stats/hmm/viterbi.R")
-source("../src/math/weightedCov.R")
+source("../emEstimationHMM.R")
+source("../getAlphaHat.R")
+source("../viterbi.R")
+source("../computeHMMCrossValidatedLogLikelihood.R")
+source("../../../math/weightedCov.R")
 require(signal)
 require(mvtnorm)
+require(MASS)
 
 getInitGaussianParams <- function(x, K) {
     D <- nrow(x)
@@ -53,19 +56,26 @@ getGaussianProbabilities <- function(x, phi) {
 }
 
 processAll <- function() {
-    nSamples <- 140
+    nSamplesTrain <- 150
+    nSamplesTest <- 50
     m1 <- c(0,1)
     sd1 <- matrix(c(1,0.7,.7,1),2,2)
     m2 <- c(1,0)
     sd2 <- matrix(c(2,.1,.1,1),2,2)
     set.seed(2)
-    y1 <- mvrnorm(nSamples/2,m1,sd1)
-    y2 <- mvrnorm(nSamples/2,m2,sd2)
+
+    y1Train <- mvrnorm(nSamplesTrain/2,m1,sd1)
+    y2Train <- mvrnorm(nSamplesTrain/2,m2,sd2)
     # this creates data with a single change point
-    y <- rbind(y1,y2)
+    yTrain <- rbind(y1Train,y2Train)
     
-    K <- 2
-    estimationRes <- emEstimationHMM(x=t(y),
+    y1Test <- mvrnorm(nSamplesTest/2,m1,sd1)
+    y2Test <- mvrnorm(nSamplesTest/2,m2,sd2)
+    # this creates data with a single change point
+    yTest <- rbind(y1Test,y2Test)
+    
+    K <- 3
+    estimationRes <- emEstimationHMM(x=t(yTrain),
                                       K=K, 
                                       getInitEmissionModelParams=
                                        getInitGaussianParams,
@@ -75,10 +85,19 @@ processAll <- function() {
                                        getUpdatedGaussianParams,
                                       convergenceTol=1e-4)
     vpath <- viterbi(Pi=estimationRes$Pi, p=estimationRes$p, A=estimationRes$A)
-
+    gamma <- estimationRes$gamma
+    PiTest <- gamma[nrow(gamma),]
+    crossValidatedLL <- 
+     computeHMMCrossValidatedLogLikelihood(x=t(yTest), 
+                                            Pi=PiTest, 
+                                            A=estimationRes$A,
+                                            phi=estimationRes$phi,
+                                            getEmissionProbabilities=
+                                             getGaussianProbabilities)
     png("figures/testMGaussian.png")
-    plot(vpath, xlab="Sample", ylab="State", yaxt="n")
-    abline(v=nrow(y1), col="red")
+    plot(vpath, xlab="Sample", ylab="State", yaxt="n", 
+                main=sprintf("LL=%f", crossValidatedLL))
+    abline(v=nrow(y1Train), col="red")
     axis(side=2, at=c(1,2))
     dev.off()
 

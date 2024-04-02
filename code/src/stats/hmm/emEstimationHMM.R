@@ -45,6 +45,27 @@ emEstimationHMM <- function(x, K,
                                saveFilename=NULL) {
     # Following notation from Bishop, 2006, Ch13
     # forward-backward algorithm or Baum-Welch algorithm
+    #
+    # answers (N number of observations, K number of latents):
+    #
+    # logLikelihoods (list of length N): history of log likelihoods achieved during EM
+    # optimization. Since EM guarantees to increase the log likelihood at every
+    # step, this list should contain increasing values.
+    #
+    # A (KxK matrix): state transition probabilities.
+    #
+    # gamma (NxK matrix): marginal posterior distribution of latents given all the
+    # observations (i.e., p(z_n | x_1, \ldots, x_N).
+    #
+    # p (NxK matrix): emission probabilities (i.e., p(x_n | z_n=k))
+    #
+    # Pi (K vector): initial state probabilities
+    #
+    # phi: emission probability parameters. For a Gaussian HMM
+    # p(X|Z=k)=N(X|mu[:,k], sigma[:,:,k]) and phi is a list
+    # with elements mu and sigma. mu is a matrix of size PxK and sigma a tensor
+    # of size PxPxK
+
     N <- ncol(x)
     Pi <- getInitialStateProbability(K=K)
     A <- getInitialTransitionMatrix(K=K)
